@@ -17,4 +17,5 @@ jobs:
       - name: Simple thing
         run: |
           echo 'Hello from bash'
+          echo $PWD
           python action.py
