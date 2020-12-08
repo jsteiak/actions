@@ -57,6 +57,7 @@ PROJECT_COLUMNS = {l: l.split(' - ')[1] for l in PROGRESS_LABELS}
 def http_get_paging(url, headers):
     while url:
         resp = http_get(url, headers=headers)
+        resp.raise_for_status()
         yield from resp.json()
         url = resp.links.get("next", {}).get('url')
     return
