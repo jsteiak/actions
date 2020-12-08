@@ -196,7 +196,6 @@ def fix_mismatches(columns, cards, issues):
 def main():
     context = loads(getenv("GITHUB_CONTEXT"))
     issue = context["event"]["issue"]
-    action = context["event"]["action"]
 
     team_projects_url = get_projects()
     columns, cards = get_project_info(team_projects_url)
