@@ -16,4 +16,4 @@ jobs:
     steps:
       - name: Simple thing
         run: |
-          echo 'Hello world'
+          echo 'Hello from bash'
