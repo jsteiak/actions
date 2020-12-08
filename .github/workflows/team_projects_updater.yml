@@ -26,4 +26,4 @@ jobs:
           echo $PWD
           echo "$GITHUB_CONTEXT"
           echo "$GITHUB_TOKEN"
-          python -m actions.action
+          python3 -m actions.action
