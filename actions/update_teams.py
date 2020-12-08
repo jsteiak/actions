@@ -19,11 +19,9 @@ PROJECT_HEADERS = {
     'authorization': AUTHORIZATION_HEADER
 }
 
-
-ORG = 'obsrvbl'
-ISSUES_REPOS = ["devops",
-                #   "cspm-issues",
-                ]
+# FIXME
+ORG = 'jsteiak'
+ISSUES_REPOS = ["actions"]
 
 ORG_URL = f"https://api.github.com/orgs/{ORG}"
 ISSUES_REPOS_URL = [
