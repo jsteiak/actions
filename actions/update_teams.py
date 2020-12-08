@@ -36,12 +36,13 @@ TEAMS = {
     'JPM': ['jmarkey', 'Ostaijen', 'mpanaro-cisco', 'milesoldenburg', 'vicawork'],
     'YNS': ['jsteiak', 'tacshooter', 'jchapian', 'alerkasun', 'jcraiggoodell', 'swc-karim'],
 }
+MEMBERS = {member: team for team, members in TEAMS.items() for member in members}
 
-TEAM_PROJECTS_URL = {
-    'BAS': 'https://api.github.com/projects/6032435',
-    'MJS': 'https://api.github.com/projects/5919023',
-    'JPM': 'https://api.github.com/projects/6032546',
-    'YNS': 'https://api.github.com/projects/6032560',
+TEAM_PROJECTS = {
+    'stamper': 'BAS',
+    'schultzm': 'MJS',
+    'jefmarke': 'JPM',
+    'istiakog': 'YNS'
 }
 
 PROGRESS_LABELS = {
@@ -74,7 +75,23 @@ def get_progress_label(labels):
     return progress_label
 
 
-def get_project_info():
+def get_projects():
+    headers = {
+        'accept': PROJECTS_ACCEPT_HEADER,
+        'authorization': AUTHORIZATION_HEADER
+    }
+
+    projects = {}
+    for issues_repo_url in ISSUES_REPOS_URL:
+        for project in http_get_paging(f'{issues_repo_url}/projects', headers=headers):
+            team = TEAM_PROJECTS.get(project.get('name'))
+            if team is not None:
+                projects[team] = project.get('url')
+
+    return projects
+
+
+def get_project_info(team_projects_url):
     project_headers = {
         'accept': PROJECTS_ACCEPT_HEADER,
         'authorization': AUTHORIZATION_HEADER
@@ -83,11 +100,7 @@ def get_project_info():
     columns = {}
     cards = {}
 
-    for team in TEAMS:
-        project_url = TEAM_PROJECTS_URL.get(team)
-        if not project_url:
-            continue
-
+    for team, project_url in team_projects_url.items():
         project = http_get(project_url, headers=project_headers).json()
         for column in http_get_paging(project.get('columns_url'), headers=project_headers):
             columns[(team, column["name"])] = {
@@ -108,24 +121,34 @@ def get_project_info():
     return columns, cards
 
 
-def get_issue_info():
+def get_issue_info(issue):
+    issues = {}
+
+    issue_nr = issue['number']
+    progress_label = get_progress_label(issue['labels'])
+    for assignee in issue['assignees']:
+        team = MEMBERS.get(assignee['login'])
+        if not team:
+            continue
+
+        issues[(team, issue_nr)] = {
+            "url": issue['url'],
+            "html_url": issue['html_url'],
+            "id": issue['id'],
+            "column": PROJECT_COLUMNS.get(progress_label)
+        }
+
+    return issues
+
+
+def get_issues_info():
     query_params = {'state': 'open', 'assignee': '*'}
 
     issues = {}
-    for team in TEAMS:
-        for member in TEAMS[team]:
-            query_params['assignee'] = member
-            for issues_repo_url in ISSUES_REPOS_URL:
-                url = f'{issues_repo_url}/issues?{urlencode(query_params)}'
-                for issue in http_get_paging(url, headers=ISSUE_HEADERS):
-                    issue_nr = issue['number']
-                    progress_label = get_progress_label(issue['labels'])
-                    issues[(team, issue_nr)] = {
-                        "url": issue['url'],
-                        "html_url": issue['html_url'],
-                        "id": issue['id'],
-                        "column": PROJECT_COLUMNS.get(progress_label)
-                    }
+    for issues_repo_url in ISSUES_REPOS_URL:
+        url = f'{issues_repo_url}/issues?{urlencode(query_params)}'
+        for issue in http_get_paging(url, headers=ISSUE_HEADERS):
+            issues.update(get_issue_info(issue))
     return issues
 
 
@@ -162,22 +185,23 @@ def fix_mismatches(columns, cards, issues):
 
 
 def main():
-    columns, cards = get_project_info()
-    issues = get_issue_info()
-    fix_mismatches(columns, cards, issues)
-
-    return 0
-
-
-def test_main():
     context = loads(getenv("GITHUB_CONTEXT"))
-    action = context.get("action")
-    label = context.get("label", {}).get("name")
-    print(action, label)
+    issue = context["event"]["issue"]
 
+    team_projects_url = get_projects()
+    print(team_projects_url)
+
+    columns, cards = get_project_info(team_projects_url)
+    print(columns)
+    print(cards)
+
+    issues = get_issue_info(issue)
+    print(issues)
+
+    fix_mismatches(columns, cards, issues)
     return 0
 
 
 if __name__ == '__main__':
     print(getenv("GITHUB_CONTEXT"))
-    exit(test_main())
+    exit(main())
