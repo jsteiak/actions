@@ -171,12 +171,13 @@ def main():
 
 def test_main():
     context = loads(getenv("GITHUB_CONTEXT"))
-    for k, v in context.items():
-        print(f"{k}:{v}")
+    action = context.get("action")
+    label = context.get("label", {}).get("name")
+    print(action, label)
 
     return 0
 
 
 if __name__ == '__main__':
-    print('Hello from python')
+    print(getenv("GITHUB_CONTEXT"))
     exit(test_main())
