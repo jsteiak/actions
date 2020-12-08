@@ -17,3 +17,4 @@ jobs:
       - name: Simple thing
         run: |
           echo 'Hello from bash'
+          python -m actions
