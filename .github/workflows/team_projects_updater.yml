@@ -22,4 +22,4 @@ jobs:
           echo 'Hello from bash'
           echo $PWD
           ls -al
-          python -m actions.action
+          python -m actions.actions.action
