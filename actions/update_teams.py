@@ -29,7 +29,7 @@ ISSUES_REPOS_URL = [
 
 TEAMS = {
     'BAS': ['bastamper', 'mcneo', 'jmuskovitz', 'silchencko', 'wesley-smith'],
-    #     'BMB': ['bbayles', 'mrg29', 'mkiselyow', 'MayCisco', 'tpeaton', 'qaispak', 'VladyslavKhanin'],
+    'BMB': ['bbayles', 'mrg29', 'mkiselyow', 'MayCisco', 'tpeaton', 'qaispak', 'VladyslavKhanin'],
     'MJS': ['mjschultz', 'snycewerk', 'yuriibruzha', 'ygavenchuk', 'ohrinish', 'vkozelsk', 'denyskulykov', 'nposlovska'],
     'JPM': ['jmarkey', 'Ostaijen', 'mpanaro-cisco', 'milesoldenburg', 'vicawork'],
     'YNS': ['jsteiak', 'tacshooter', 'jchapian', 'alerkasun', 'jcraiggoodell', 'swc-karim'],
