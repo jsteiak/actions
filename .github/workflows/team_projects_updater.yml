@@ -22,8 +22,4 @@ jobs:
           GITHUB_CONTEXT: ${{ toJson(github) }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo 'Hello from bash'
-          echo $PWD
-          echo "$GITHUB_CONTEXT"
-          echo "$GITHUB_TOKEN"
-          python3 -m actions.action
+          python3 -m actions.update_teams
