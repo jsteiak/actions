@@ -18,4 +18,5 @@ jobs:
         run: |
           echo 'Hello from bash'
           echo $PWD
+          ls -al
           python action.py
