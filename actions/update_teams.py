@@ -2,6 +2,7 @@ from json import loads, dumps
 from os import getenv
 from requests import get as http_get, post as http_post
 from urllib.parse import urlencode
+from _collections import defaultdict
 
 GITHUB_TOKEN = getenv('GITHUB_TOKEN')
 
@@ -152,9 +153,11 @@ def get_issues_info():
 
 
 def fix_mismatches(columns, cards, issues):
+    in_teams = defaultdict(set)
     for (team, issue_nr), issue_info in issues.items():
-        card_info = cards.get((team, issue_nr))
+        in_teams[issue_nr].add(team)
 
+        card_info = cards.get((team, issue_nr))
         if not card_info:
             print(f"{issue_info['html_url']} not found in {team}.")
             column_url = columns.get((team, issue_info['column']), {}).get('url')
@@ -182,22 +185,25 @@ def fix_mismatches(columns, cards, issues):
             resp.raise_for_status()
             print(f"Moved {issue_info['html_url']} to {card_info['column']} in {team}.")
 
+    for issue_nr in in_teams:
+        not_in_teams = set(TEAMS.keys()) - in_teams[issue_nr]
+        for team in not_in_teams:
+            card_info = cards.get((team, issue_nr))
+            if card_info:
+                print(f"{issues[(team, issue_nr)]['html_url']} found in {team}.")
+
 
 def main():
     context = loads(getenv("GITHUB_CONTEXT"))
     issue = context["event"]["issue"]
+    action = context["event"]["action"]
 
     team_projects_url = get_projects()
-    print(team_projects_url)
-
     columns, cards = get_project_info(team_projects_url)
-    print(columns)
-    print(cards)
-
     issues = get_issue_info(issue)
-    print(issues)
 
     fix_mismatches(columns, cards, issues)
+
     return 0
 
 
