@@ -8,7 +8,7 @@
 name: Update team projects
 on:
   issues:
-    types: [assigned, unassigned, labeled, unlabeled]
+    types: [assigned, labeled]
 
 jobs:
   update:
