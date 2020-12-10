@@ -1,10 +1,12 @@
+from collections import defaultdict
 from json import loads, dumps
 from os import getenv
 
 from actions.teams.const import (
     MEMBERS,
     PROGRESS_LABELS,
-    PROJECT_COLUMNS,
+    PROJECT_PROGRESS_COLUMNS,
+    PROJECT_PROGRESS_COLUMNS_ALT,
     TEAM_PROJECTS,
 )
 from actions.utils.github import (
@@ -29,93 +31,70 @@ def get_progress_label(labels):
     return progress_label
 
 
-def get_projects(repository_url):
-    projects = {}
+def get_projects_info(repository_url):
+    columns = defaultdict(dict)
+    cards = defaultdict(dict)
+
     for project in http_list(
         f"{repository_url}/projects", headers=PROJECT_HEADERS
     ):
-        team = TEAM_PROJECTS.get(project.get("name"))
-        if team is not None:
-            projects[team] = project.get("url")
-
-    return projects
-
-
-def get_project_info(team_projects_url):
-    columns = {}
-    cards = {}
-
-    for team, project_url in team_projects_url.items():
-        project = http_get(project_url, headers=PROJECT_HEADERS)
+        project_name = project["name"]
         for column in http_list(
             project.get("columns_url"), headers=PROJECT_HEADERS
         ):
-            columns[(team, column["name"])] = {
+            column_name = column["name"]
+            columns[project_name][column_name] = {
                 "url": column["url"],
                 "id": column["id"],
             }
-            card_url = column.get("cards_url")
-            for card in http_list(card_url, headers=PROJECT_HEADERS):
+            for card in http_list(
+                column.get("cards_url"), headers=PROJECT_HEADERS
+            ):
                 content_url = card.get("content_url")
                 if not content_url:
                     continue
                 issue_nr = int(card.get("content_url").split("/")[-1])
-                cards[(team, issue_nr)] = {
+                cards[issue_nr][project_name] = {
                     "url": card["url"],
-                    "column": column["name"],
+                    "column": column_name,
                 }
 
     return columns, cards
 
 
 def get_issue_info(issue_url):
-    issues = {}
-
+    """ Retrieve up-to-date issue information """
     issue = http_get(issue_url, headers=ISSUE_HEADERS)
 
-    issue_nr = issue["number"]
-    progress_label = get_progress_label(issue["labels"])
-    for assignee in issue["assignees"]:
-        team = MEMBERS.get(assignee["login"])
-        if not team:
-            continue
-
-        issues[(team, issue_nr)] = {
-            "url": issue["url"],
-            "html_url": issue["html_url"],
-            "id": issue["id"],
-            "column": PROJECT_COLUMNS.get(progress_label),
-        }
-
-    return issues
+    return {
+        "number": issue["number"],
+        "teams": {
+            MEMBERS[assignee["login"]]
+            for assignee in issue["assignees"]
+            if assignee["login"] in MEMBERS
+        },
+        "url": issue["url"],
+        "html_url": issue["html_url"],
+        "id": issue["id"],
+        "progress": get_progress_label(issue["labels"]),
+    }
 
 
-def fix_mismatches(columns, cards, issues):
-    for (team, issue_nr), issue_info in issues.items():
-        card_info = cards.get((team, issue_nr))
-        if not card_info:
-            print(f"{issue_info['html_url']} not found in {team}.")
-            column_url = columns.get((team, issue_info["column"]), {}).get(
-                "url"
-            )
-            if not column_url:
-                print("[ERROR] Column URL not found.")
-                continue
-            url = f"{column_url}/cards"
-            data = dumps(
-                {"content_id": issue_info["id"], "content_type": "Issue"}
-            )
-            http_post(url, headers=PROJECT_HEADERS, data=data)
-            print(f"Assigned {issue_info['html_url']} to {team}.")
-            continue
+def fix_mismatches(columns, cards, issue):
+    progress_column = PROJECT_PROGRESS_COLUMNS.get(
+        issue["progress"]
+    ) or PROJECT_PROGRESS_COLUMNS_ALT.get(issue["progress"])
 
-        if issue_info["column"] != card_info["column"]:
+    for project_name, card_info in cards.get(issue["number"], {}).items():
+        if card_info["column"] != progress_column:
             print(
-                f"{issue_info['html_url']} is {issue_info['column']} but "
-                f"appears as {card_info['column']} in {team}."
+                f"{issue['html_url']} is {progress_column} but "
+                f"appears as {card_info['column']} in {project_name}."
             )
 
-            column_id = columns.get((team, issue_info["column"]), {}).get("id")
+            column_id = (
+                columns.get(project_name, {}).get(progress_column, {}).get("id")
+            )
             if not column_id:
                 print("[ERROR] Column ID not found.")
                 continue
@@ -123,9 +102,30 @@ def fix_mismatches(columns, cards, issues):
             data = dumps({"column_id": column_id, "position": "top"})
             http_post(url, headers=PROJECT_HEADERS, data=data)
             print(
-                f"Moved {issue_info['html_url']} to {issue_info['column']} "
-                f"in {team}."
+                f"Moved {issue['html_url']} to {progress_column} "
+                f"in {project_name}."
             )
+
+    for team in issue["teams"]:
+        team_project = TEAM_PROJECTS.get(team)
+        if not team_project:
+            continue
+
+        card = cards.get(issue["number"], {}).get(team_project)
+        if not card:
+            print(f"{issue['html_url']} not found in {team}.")
+            column_url = (
+                columns.get(team_project, {})
+                .get(progress_column, {})
+                .get("url")
+            )
+            if not column_url:
+                print("[ERROR] Column URL not found.")
+                continue
+            url = f"{column_url}/cards"
+            data = dumps({"content_id": issue["id"], "content_type": "Issue"})
+            http_post(url, headers=PROJECT_HEADERS, data=data)
+            print(f"Assigned {issue['html_url']} to {team}.")
 
 
 def main():
@@ -134,8 +134,7 @@ def main():
     repository_url = context["event"]["repository"]["url"]
     issue_url = context["event"]["issue"]["url"]
 
-    team_projects_url = get_projects(repository_url)
-    columns, cards = get_project_info(team_projects_url)
+    columns, cards = get_projects_info(repository_url)
     issues = get_issue_info(issue_url)
 
     fix_mismatches(columns, cards, issues)
