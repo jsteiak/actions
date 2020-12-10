@@ -42,7 +42,7 @@ def get_projects_info(repository_url):
         for column in http_list(
             project.get("columns_url"), headers=PROJECT_HEADERS
         ):
-            column_name = column["name"]
+            column_name = column["name"].lower()
             columns[project_name][column_name] = {
                 "url": column["url"],
                 "id": column["id"],

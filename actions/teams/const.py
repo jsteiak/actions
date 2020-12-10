@@ -12,10 +12,10 @@ PROGRESS_LABELS = {
     "3 - Complete": 3,
 }
 PROJECT_PROGRESS_COLUMNS = {
-    label: label.split(" - ")[1] for label in PROGRESS_LABELS
+    label: label.split(" - ")[1].lower() for label in PROGRESS_LABELS
 }
 PROJECT_PROGRESS_COLUMNS_ALT = {
-    "1 - Ready": "To do",
-    "2 - Working": "In progress",
-    "3 - Complete": "Done",
+    "1 - Ready": "to do",
+    "2 - Working": "in progress",
+    "3 - Complete": "done",
 }
