@@ -27,19 +27,10 @@ ORG_URL = f"https://api.github.com/orgs/{ORG}"
 ISSUES_REPOS_URL = [
     f"https://api.github.com/repos/{ORG}/{issue_repo}" for issue_repo in ISSUES_REPOS]
 
-TEAMS = {
-    'BAS': ['bastamper', 'mcneo', 'jmuskovitz', 'silchencko', 'wesley-smith'],
-    'BMB': ['bbayles', 'mrg29', 'mkiselyow', 'MayCisco', 'tpeaton', 'qaispak', 'VladyslavKhanin'],
-    'MJS': ['mjschultz', 'snycewerk', 'yuriibruzha', 'ygavenchuk', 'ohrinish', 'vkozelsk', 'denyskulykov', 'nposlovska'],
-    'JPM': ['jmarkey', 'Ostaijen', 'mpanaro-cisco', 'milesoldenburg', 'vicawork'],
-    'YNS': ['jsteiak', 'tacshooter', 'jchapian', 'alerkasun', 'jcraiggoodell', 'swc-karim'],
-}
+TEAMS = {'YNS': ['jsteiak']}
 MEMBERS = {member: team for team, members in TEAMS.items() for member in members}
 
 TEAM_PROJECTS = {
-    'stamper': 'BAS',
-    'schultzm': 'MJS',
-    'jefmarke': 'JPM',
     'istiakog': 'YNS'
 }
 
