@@ -84,49 +84,52 @@ def get_issue_info(issue_url):
     }
 
 
-def fix_mismatches(columns, cards, issue):
-    progress_column = PROJECT_PROGRESS_COLUMNS.get(
-        issue["progress"]
-    ) or PROJECT_PROGRESS_COLUMNS_ALT.get(issue["progress"])
+def get_progress_column(prj_columns, progress_label):
+    if not prj_columns or not progress_label:
+        return None
 
-    for project_name, card_info in cards.get(issue["number"], {}).items():
-        if card_info["column"] != progress_column:
-            print(
-                f"{issue['html_url']} is {progress_column} but "
-                f"appears as {card_info['column']} in {project_name}."
-            )
+    prj_column_name = PROJECT_PROGRESS_COLUMNS.get(progress_label)
+    if prj_column_name in prj_columns:
+        return prj_column_name, prj_columns[prj_column_name]
 
-            column_id = (
-                columns.get(project_name, {}).get(progress_column, {}).get("id")
-            )
-            if not column_id:
-                print(f"{progress_column} not found in {project_name}.")
-                continue
-            url = f"{card_info['url']}/moves"
-            data = dumps({"column_id": column_id, "position": "top"})
-            http_post(url, headers=PROJECT_HEADERS, data=data)
-            print(
-                f"Moved {issue['html_url']} to {progress_column} "
-                f"in {project_name}."
-            )
+    prj_column_name_alt = PROJECT_PROGRESS_COLUMNS_ALT.get(progress_label)
+    if prj_column_name_alt in prj_columns:
+        return prj_column_name_alt, prj_columns[prj_column_name_alt]
 
-    for team in issue["teams"]:
-        team_project = TEAM_PROJECTS.get(team)
-        if not team_project:
+    return None, None
+
+
+def fix_progress_column(columns, cards, issue):
+    progress_label = issue['progress']
+
+    for prj_name, card_info in cards.get(issue["number"], {}).items():
+        prj_col_name, prj_col = get_progress_column(columns[prj_name], progress_label)
+        if not prj_col:
+            print(f"No match found for {progress_label} in {prj_name}.")
             continue
 
-        card = cards.get(issue["number"], {}).get(team_project)
+        if card_info["column"] != prj_col_name:
+            url = f"{card_info['url']}/moves"
+            data = dumps({"column_id": prj_col["id"], "position": "top"})
+            http_post(url, headers=PROJECT_HEADERS, data=data)
+            print(f"Moved {issue['html_url']} to {prj_col_name} in {prj_name}.")
+
+
+def fix_team_assignment(columns, cards, issue):
+    progress_label = issue['progress']
+    for team in issue["teams"]:
+        prj_name = TEAM_PROJECTS.get(team)
+        if not prj_name:
+            continue
+
+        _, prj_col = get_progress_column(columns.get(prj_name), progress_label)
+        if not prj_col:
+            print(f"No match found for {progress_label} in {prj_name}.")
+            continue
+
+        card = cards.get(issue["number"], {}).get(prj_name)
         if not card:
-            print(f"{issue['html_url']} not found in {team}.")
-            column_url = (
-                columns.get(team_project, {})
-                .get(progress_column, {})
-                .get("url")
-            )
-            if not column_url:
-                print(f"{progress_column} not in found team {team_project}.")
-                continue
-            url = f"{column_url}/cards"
+            url = f"{prj_col['url']}/cards"
             data = dumps({"content_id": issue["id"], "content_type": "Issue"})
             http_post(url, headers=PROJECT_HEADERS, data=data)
             print(f"Assigned {issue['html_url']} to {team}.")
@@ -142,7 +145,8 @@ def main():
     issue = get_issue_info(issue_url)
 
     if issue:
-        fix_mismatches(columns, cards, issue)
+        fix_progress_column(columns, cards, issue)
+        fix_team_assignment(columns, cards, issue)
 
     return 0
 
