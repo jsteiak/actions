@@ -19,8 +19,6 @@ PROJECT_HEADERS = {
 }
 
 
-BASE_REPO_URL = "https://api.github.com/repos/"
-
 TEAMS = {
     "YNS": [
         "jsteiak",
@@ -171,9 +169,12 @@ def fix_mismatches(columns, cards, issues):
 def main():
     context = loads(getenv("GITHUB_CONTEXT"))
 
-    team_projects_url = get_projects(f"{BASE_REPO_URL}/{context['repository']}")
+    repository_url = context["event"]["repository"]["url"]
+    issue_url = context["event"]["issue"]["url"]
+
+    team_projects_url = get_projects(repository_url)
     columns, cards = get_project_info(team_projects_url)
-    issues = get_issue_info(context["event"]["issue"]["url"])
+    issues = get_issue_info(issue_url)
 
     fix_mismatches(columns, cards, issues)
 
