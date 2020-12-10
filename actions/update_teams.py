@@ -39,23 +39,23 @@ PROGRESS_LABELS = {
 PROJECT_COLUMNS = {label: label.split(" - ")[1] for label in PROGRESS_LABELS}
 
 
-def http_get_one(url, headers):
-    resp = requests.get(url, headers=headers)
+def http_get_one(url, **kwags):
+    resp = requests.get(url, **kwags)
     resp.raise_for_status()
     return resp.json()
 
 
-def http_get_many(url, headers):
+def http_get_many(url, **kwags):
     while url:
-        resp = requests.get(url, headers=headers)
+        resp = requests.get(url, **kwags)
         resp.raise_for_status()
         yield from resp.json()
         url = resp.links.get("next", {}).get("url")
     return
 
 
-def http_post_one(url, headers, data):
-    resp = requests.post(url, headers=headers, data=data)
+def http_post_one(url, **kwags):
+    resp = requests.post(url, **kwags)
     resp.raise_for_status()
     return resp.json()
 
@@ -123,7 +123,7 @@ def get_project_info(team_projects_url):
 def get_issue_info(issue_url):
     issues = {}
 
-    issue = http_get_one(issue_url)
+    issue = http_get_one(issue_url, headers=ISSUE_HEADERS)
 
     issue_nr = issue["number"]
     progress_label = get_progress_label(issue["labels"])
