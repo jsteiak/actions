@@ -4,31 +4,23 @@ import requests
 
 GITHUB_TOKEN = getenv("GITHUB_TOKEN")
 
-AUTHORIZATION_HEADER = f"token {GITHUB_TOKEN}"
-ISSUES_ACCEPT_HEADER = "application/vnd.github.v3.full+json"
-PROJECTS_ACCEPT_HEADER = "application/vnd.github.inertia-preview+json"
-
 ISSUE_HEADERS = {
-    "accept": ISSUES_ACCEPT_HEADER,
-    "authorization": AUTHORIZATION_HEADER,
+    "accept": "application/vnd.github.v3.full+json",
+    "authorization": f"token {GITHUB_TOKEN}",
 }
 
 PROJECT_HEADERS = {
-    "accept": PROJECTS_ACCEPT_HEADER,
-    "authorization": AUTHORIZATION_HEADER,
+    "accept": "application/vnd.github.inertia-preview+json",
+    "authorization": f"token {GITHUB_TOKEN}",
 }
 
 
-TEAMS = {
-    "YNS": [
-        "jsteiak",
-    ],
+TEAMS = {"YNS": ["jsteiak"]}
+MEMBERS = {
+    member: team for team, members in TEAMS.items() for member in members
 }
-MEMBERS = {member: team for team, members in TEAMS.items() for member in members}
 
-TEAM_PROJECTS = {
-    "istiakog": "YNS",
-}
+TEAM_PROJECTS = {"istiakog": "YNS"}
 
 PROGRESS_LABELS = {
     "0 - Backlog": 0,
@@ -39,13 +31,13 @@ PROGRESS_LABELS = {
 PROJECT_COLUMNS = {label: label.split(" - ")[1] for label in PROGRESS_LABELS}
 
 
-def http_get_one(url, **kwags):
+def http_get(url, **kwags):
     resp = requests.get(url, **kwags)
     resp.raise_for_status()
     return resp.json()
 
 
-def http_get_many(url, **kwags):
+def http_list(url, **kwags):
     while url:
         resp = requests.get(url, **kwags)
         resp.raise_for_status()
@@ -54,7 +46,7 @@ def http_get_many(url, **kwags):
     return
 
 
-def http_post_one(url, **kwags):
+def http_post(url, **kwags):
     resp = requests.post(url, **kwags)
     resp.raise_for_status()
     return resp.json()
@@ -74,13 +66,10 @@ def get_progress_label(labels):
 
 
 def get_projects(repository_url):
-    headers = {
-        "accept": PROJECTS_ACCEPT_HEADER,
-        "authorization": AUTHORIZATION_HEADER,
-    }
-
     projects = {}
-    for project in http_get_many(f"{repository_url}/projects", headers=headers):
+    for project in http_list(
+        f"{repository_url}/projects", headers=PROJECT_HEADERS
+    ):
         team = TEAM_PROJECTS.get(project.get("name"))
         if team is not None:
             projects[team] = project.get("url")
@@ -89,25 +78,20 @@ def get_projects(repository_url):
 
 
 def get_project_info(team_projects_url):
-    project_headers = {
-        "accept": PROJECTS_ACCEPT_HEADER,
-        "authorization": AUTHORIZATION_HEADER,
-    }
-
     columns = {}
     cards = {}
 
     for team, project_url in team_projects_url.items():
-        project = http_get_one(project_url, headers=project_headers)
-        for column in http_get_many(
-            project.get("columns_url"), headers=project_headers
+        project = http_get(project_url, headers=PROJECT_HEADERS)
+        for column in http_list(
+            project.get("columns_url"), headers=PROJECT_HEADERS
         ):
             columns[(team, column["name"])] = {
                 "url": column["url"],
                 "id": column["id"],
             }
             card_url = column.get("cards_url")
-            for card in http_get_many(card_url, headers=project_headers):
+            for card in http_list(card_url, headers=PROJECT_HEADERS):
                 content_url = card.get("content_url")
                 if not content_url:
                     continue
@@ -123,7 +107,7 @@ def get_project_info(team_projects_url):
 def get_issue_info(issue_url):
     issues = {}
 
-    issue = http_get_one(issue_url, headers=ISSUE_HEADERS)
+    issue = http_get(issue_url, headers=ISSUE_HEADERS)
 
     issue_nr = issue["number"]
     progress_label = get_progress_label(issue["labels"])
@@ -147,13 +131,17 @@ def fix_mismatches(columns, cards, issues):
         card_info = cards.get((team, issue_nr))
         if not card_info:
             print(f"{issue_info['html_url']} not found in {team}.")
-            column_url = columns.get((team, issue_info["column"]), {}).get("url")
+            column_url = columns.get((team, issue_info["column"]), {}).get(
+                "url"
+            )
             if not column_url:
                 print("[ERROR] Column URL not found.")
                 continue
             url = f"{column_url}/cards"
-            data = dumps({"content_id": issue_info["id"], "content_type": "Issue"})
-            http_post_one(url, headers=PROJECT_HEADERS, data=data)
+            data = dumps(
+                {"content_id": issue_info["id"], "content_type": "Issue"}
+            )
+            http_post(url, headers=PROJECT_HEADERS, data=data)
             print(f"Assigned {issue_info['html_url']} to {team}.")
             continue
 
@@ -169,7 +157,7 @@ def fix_mismatches(columns, cards, issues):
                 continue
             url = f"{card_info['url']}/moves"
             data = dumps({"column_id": column_id, "position": "top"})
-            http_post_one(url, headers=PROJECT_HEADERS, data=data)
+            http_post(url, headers=PROJECT_HEADERS, data=data)
             print(
                 f"Moved {issue_info['html_url']} to {card_info['column']} "
                 f"in {team}."
