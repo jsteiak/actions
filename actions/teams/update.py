@@ -65,6 +65,10 @@ def get_projects_info(repository_url):
 def get_issue_info(issue_url):
     """ Retrieve up-to-date issue information """
     issue = http_get(issue_url, headers=ISSUE_HEADERS)
+    progress_label = get_progress_label(issue["labels"])
+    if not progress_label:
+        print(f"{issue['html_url']} has no progress label.")
+        return None
 
     return {
         "number": issue["number"],
@@ -76,7 +80,7 @@ def get_issue_info(issue_url):
         "url": issue["url"],
         "html_url": issue["html_url"],
         "id": issue["id"],
-        "progress": get_progress_label(issue["labels"]),
+        "progress": progress_label,
     }
 
 
@@ -135,9 +139,10 @@ def main():
     issue_url = context["event"]["issue"]["url"]
 
     columns, cards = get_projects_info(repository_url)
-    issues = get_issue_info(issue_url)
+    issue = get_issue_info(issue_url)
 
-    fix_mismatches(columns, cards, issues)
+    if issue:
+        fix_mismatches(columns, cards, issue)
 
     return 0
 
