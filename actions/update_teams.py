@@ -1,6 +1,6 @@
 from json import loads, dumps
 from os import getenv
-from requests import get as http_get, post as http_post
+import requests
 
 GITHUB_TOKEN = getenv("GITHUB_TOKEN")
 
@@ -39,13 +39,25 @@ PROGRESS_LABELS = {
 PROJECT_COLUMNS = {label: label.split(" - ")[1] for label in PROGRESS_LABELS}
 
 
-def http_get_paging(url, headers):
+def http_get_one(url, headers):
+    resp = requests.get(url, headers=headers)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def http_get_many(url, headers):
     while url:
-        resp = http_get(url, headers=headers)
+        resp = requests.get(url, headers=headers)
         resp.raise_for_status()
         yield from resp.json()
         url = resp.links.get("next", {}).get("url")
     return
+
+
+def http_post_one(url, headers, data):
+    resp = requests.post(url, headers=headers, data=data)
+    resp.raise_for_status()
+    return resp.json()
 
 
 def get_progress_label(labels):
@@ -68,7 +80,7 @@ def get_projects(repository_url):
     }
 
     projects = {}
-    for project in http_get_paging(f"{repository_url}/projects", headers=headers):
+    for project in http_get_many(f"{repository_url}/projects", headers=headers):
         team = TEAM_PROJECTS.get(project.get("name"))
         if team is not None:
             projects[team] = project.get("url")
@@ -86,8 +98,8 @@ def get_project_info(team_projects_url):
     cards = {}
 
     for team, project_url in team_projects_url.items():
-        project = http_get(project_url, headers=project_headers).json()
-        for column in http_get_paging(
+        project = http_get_one(project_url, headers=project_headers)
+        for column in http_get_many(
             project.get("columns_url"), headers=project_headers
         ):
             columns[(team, column["name"])] = {
@@ -95,7 +107,7 @@ def get_project_info(team_projects_url):
                 "id": column["id"],
             }
             card_url = column.get("cards_url")
-            for card in http_get_paging(card_url, headers=project_headers):
+            for card in http_get_many(card_url, headers=project_headers):
                 content_url = card.get("content_url")
                 if not content_url:
                     continue
@@ -111,7 +123,7 @@ def get_project_info(team_projects_url):
 def get_issue_info(issue_url):
     issues = {}
 
-    issue = http_get(issue_url)
+    issue = http_get_one(issue_url)
 
     issue_nr = issue["number"]
     progress_label = get_progress_label(issue["labels"])
@@ -141,8 +153,7 @@ def fix_mismatches(columns, cards, issues):
                 continue
             url = f"{column_url}/cards"
             data = dumps({"content_id": issue_info["id"], "content_type": "Issue"})
-            resp = http_post(url, headers=PROJECT_HEADERS, data=data)
-            resp.raise_for_status()
+            http_post_one(url, headers=PROJECT_HEADERS, data=data)
             print(f"Assigned {issue_info['html_url']} to {team}.")
             continue
 
@@ -158,8 +169,7 @@ def fix_mismatches(columns, cards, issues):
                 continue
             url = f"{card_info['url']}/moves"
             data = dumps({"column_id": column_id, "position": "top"})
-            resp = http_post(url, headers=PROJECT_HEADERS, data=data)
-            resp.raise_for_status()
+            http_post_one(url, headers=PROJECT_HEADERS, data=data)
             print(
                 f"Moved {issue_info['html_url']} to {card_info['column']} "
                 f"in {team}."
