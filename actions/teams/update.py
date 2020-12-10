@@ -1,55 +1,19 @@
 from json import loads, dumps
 from os import getenv
-import requests
 
-GITHUB_TOKEN = getenv("GITHUB_TOKEN")
-
-ISSUE_HEADERS = {
-    "accept": "application/vnd.github.v3.full+json",
-    "authorization": f"token {GITHUB_TOKEN}",
-}
-
-PROJECT_HEADERS = {
-    "accept": "application/vnd.github.inertia-preview+json",
-    "authorization": f"token {GITHUB_TOKEN}",
-}
-
-
-TEAMS = {"YNS": ["jsteiak"]}
-MEMBERS = {
-    member: team for team, members in TEAMS.items() for member in members
-}
-
-TEAM_PROJECTS = {"istiakog": "YNS"}
-
-PROGRESS_LABELS = {
-    "0 - Backlog": 0,
-    "1 - Ready": 1,
-    "2 - Working": 2,
-    "3 - Complete": 3,
-}
-PROJECT_COLUMNS = {label: label.split(" - ")[1] for label in PROGRESS_LABELS}
-
-
-def http_get(url, **kwags):
-    resp = requests.get(url, **kwags)
-    resp.raise_for_status()
-    return resp.json()
-
-
-def http_list(url, **kwags):
-    while url:
-        resp = requests.get(url, **kwags)
-        resp.raise_for_status()
-        yield from resp.json()
-        url = resp.links.get("next", {}).get("url")
-    return
-
-
-def http_post(url, **kwags):
-    resp = requests.post(url, **kwags)
-    resp.raise_for_status()
-    return resp.json()
+from actions.teams.const import (
+    MEMBERS,
+    PROGRESS_LABELS,
+    PROJECT_COLUMNS,
+    TEAM_PROJECTS,
+)
+from actions.utils.github import (
+    ISSUE_HEADERS,
+    PROJECT_HEADERS,
+    http_get,
+    http_list,
+    http_post,
+)
 
 
 def get_progress_label(labels):
@@ -159,7 +123,7 @@ def fix_mismatches(columns, cards, issues):
             data = dumps({"column_id": column_id, "position": "top"})
             http_post(url, headers=PROJECT_HEADERS, data=data)
             print(
-                f"Moved {issue_info['html_url']} to {card_info['column']} "
+                f"Moved {issue_info['html_url']} to {issue_info['column']} "
                 f"in {team}."
             )
 
