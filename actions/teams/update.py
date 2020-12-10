@@ -96,7 +96,7 @@ def fix_mismatches(columns, cards, issue):
                 columns.get(project_name, {}).get(progress_column, {}).get("id")
             )
             if not column_id:
-                print("[ERROR] Column ID not found.")
+                print(f"{progress_column} not found in {project_name}.")
                 continue
             url = f"{card_info['url']}/moves"
             data = dumps({"column_id": column_id, "position": "top"})
@@ -120,7 +120,7 @@ def fix_mismatches(columns, cards, issue):
                 .get("url")
             )
             if not column_url:
-                print("[ERROR] Column URL not found.")
+                print(f"{progress_column} not in found team {team_project}.")
                 continue
             url = f"{column_url}/cards"
             data = dumps({"content_id": issue["id"], "content_type": "Issue"})
